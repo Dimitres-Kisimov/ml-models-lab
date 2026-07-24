@@ -1,0 +1,37 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Torch decision: we install the CPU-only wheel from PyTorch's CPU index
+      # so CI stays light (no CUDA download) but still exercises every model,
+      # including the two torch ones (demand-forecast-net, sku-text-classifier)
+      # and the autoencoder. If this install is ever flaky, the torch-dependent
+      # tests use pytest.importorskip("torch") and simply skip - the numpy
+      # models (churn, elasticity, anomaly PCA baseline) remain fully tested,
+      # and the whole suite still passes. So torch here is best-effort coverage,
+      # not a hard CI dependency.
+      - name: Install CPU torch
+        run: pip install "torch" --index-url https://download.pytorch.org/whl/cpu
+
+      - name: Install the rest
+        run: pip install numpy scipy pandas matplotlib ruff pytest
+
+      - name: Ruff
+        run: python -m ruff check .
+
+      - name: Pytest
+        run: python -m pytest -q
