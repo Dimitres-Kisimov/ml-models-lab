@@ -120,4 +120,4 @@ docs/METHODOLOGY.md   the deeper spec, with citations
 
 ## License
 
-MIT - see [`LICENSE`](LICENSE). Author: Dimitres Kisimov, 2026.
+© 2026 Dimitres Kisimov — all rights reserved; published for portfolio review. See LICENSE. Author: Dimitres Kisimov, 2026.
