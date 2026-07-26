@@ -12,6 +12,22 @@ from mllab.order_anomaly_ae.model import PCAReconstructor, Standardizer
 SEED = 3
 
 
+def explain_top_flag(
+    flag_scores: np.ndarray,
+    per_feat: np.ndarray,
+    feat_names: list[str],
+    top_n: int = 2,
+) -> list[tuple[str, float]]:
+    """Attribute the top-flagged row to its largest per-feature errors.
+
+    ``flag_scores`` and ``per_feat`` must come from the SAME scorer, so the
+    explanation always matches the score that flagged the row.
+    """
+    top = int(np.argsort(-flag_scores)[0])
+    contrib = per_feat[top] / per_feat[top].sum()
+    return sorted(zip(feat_names, contrib, strict=False), key=lambda t: -t[1])[:top_n]
+
+
 def run(seed: int = SEED, make_plot: bool = True) -> dict:
     X, y, feat_names = synth.make_orders(seed=seed)
     rng = np.random.default_rng(seed)
@@ -36,7 +52,7 @@ def run(seed: int = SEED, make_plot: bool = True) -> dict:
     pca_ev = pca.score(Xev)
 
     # AE (torch); import lazily so numpy-only environments still import this file
-    from mllab.order_anomaly_ae.ae import ae_score, train_ae
+    from mllab.order_anomaly_ae.ae import ae_per_feature_error, ae_score, train_ae
 
     ae = train_ae(Xtr, seed=seed, epochs=300, denoise_std=0.1)
     ae_ev = ae_score(ae, Xev)
@@ -73,13 +89,18 @@ def run(seed: int = SEED, make_plot: bool = True) -> dict:
     else:
         print("[recommendation] AE beats PCA on PR-AUC on this seed; PCA remains the honest baseline.")
 
-    # per-feature explanation for the top flagged anomaly
-    per_feat = pca.per_feature_error(Xev)
-    top = int(np.argsort(-pca_ev)[0])
-    contrib = per_feat[top] / per_feat[top].sum()
-    ranked = sorted(zip(feat_names, contrib, strict=False), key=lambda t: -t[1])[:2]
+    # per-feature explanation for the top flagged anomaly, attributed by the
+    # SAME scorer that produced the flag score being reported (the PR-AUC
+    # winner above) - never PCA attribution for an AE flag or vice versa.
+    if winner == "AE":
+        flag_scores, per_feat = ae_ev, ae_per_feature_error(ae, Xev)
+    else:
+        flag_scores, per_feat = pca_ev, pca.per_feature_error(Xev)
+    ranked = explain_top_flag(flag_scores, per_feat, feat_names)
     expl = ", ".join(f"{n} ({w*100:.0f}%)" for n, w in ranked)
-    print(f"[explanation] top-flagged order driven by: {expl}")
+    out["explanation_scorer"] = winner
+    out["explanation_features"] = [n for n, _ in ranked]
+    print(f"[explanation] top-flagged order ({winner} attribution) driven by: {expl}")
 
     if make_plot:
         _plot(yev, pca_ev, ae_ev, out, seed)

@@ -20,8 +20,10 @@
   1 - contamination percentile, an explicit false-positive budget), and the
   remaining rows - 1,363 orders including all 150 anomalies - for evaluation.
 - **One improvement over the base method:** the clean-split percentile
-  threshold plus per-feature error attribution for every flag ("driven by
-  customer_tenure (63%), lead_time_days (17%)" is the actual seed-3 output).
+  threshold plus per-feature error attribution for every flag, computed by
+  the same scorer that produced the flag ("driven by customer_tenure (86%),
+  lead_time_days (5%)" is the actual seed-3 output, AE attribution because
+  the AE is the reported PR-AUC winner on this seed).
 
 ## Intended use
 
@@ -84,15 +86,26 @@
 - **The contamination rate is assumed known (3%)** because the generator sets
   it. In reality it is unknown and unstable, and both the threshold and the
   interpretation of P@k depend on it.
-- **The flag explanation currently comes from the PCA reconstructor, not the
-  AE:** `train.py` computes per-feature attribution via
-  `PCAReconstructor.per_feature_error` even when the AE is the recommended
-  scorer, so on seeds where the two models disagree about *why* a row is
-  strange, the explanation shown may not match the score that flagged it.
 - **Not adversarially robust:** injected anomalies are naive; a counterparty
   who keeps discount abuse *near* the normal correlation structure would
   score low by construction. The narrow AE-vs-PCA margin is also
   seed-dependent and should not be quoted as "AE beats PCA" in general.
+
+### Fixed
+
+- **Scorer/explanation mismatch (fixed 2026-07-26):** `train.py` previously
+  computed the per-feature flag attribution via
+  `PCAReconstructor.per_feature_error` even when the AE was the scorer being
+  reported, so the explanation shown could disagree with the score that
+  flagged the row. The AE now has its own `ae_per_feature_error` (squared
+  reconstruction error per input feature, rows summing to the AE anomaly
+  score), and the CLI attributes the top flag with whichever scorer won the
+  reported comparison (AE attribution for AE flags, PCA attribution for PCA
+  flags). Scoring, thresholding, and the recommendation rule are unchanged;
+  the seed-3 metrics table above is identical before and after. Only the
+  printed explanation weights changed (PCA attribution said "customer_tenure
+  (63%), lead_time_days (17%)"; the AE, which flagged the row, says
+  "customer_tenure (86%), lead_time_days (5%)").
 
 ## Ethical and deployment considerations
 

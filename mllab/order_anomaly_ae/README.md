@@ -9,8 +9,9 @@ error - with a **mandatory PCA-SVD baseline** so the comparison stays honest.
   challenger (`model.py`, torch-free and unit-tested).
 - **Improvement:** the anomaly threshold is set from a percentile on a *clean*
   validation split (an explicit FPR/contamination budget), and every flag is
-  explained by its top per-feature reconstruction errors
-  ("driven by customer_tenure, lead_time_days").
+  explained by its top per-feature reconstruction errors, attributed by the
+  same scorer that produced the flag ("driven by customer_tenure,
+  lead_time_days").
 - **Data:** 5000 orders, 7 correlated features via a low-rank factor model, with
   ~3% injected anomalies of three kinds: extreme-univariate, broken-correlation,
   and impossible-combo (`mllab/synth.make_orders`).

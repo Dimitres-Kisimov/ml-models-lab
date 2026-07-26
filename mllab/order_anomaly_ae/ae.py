@@ -57,3 +57,16 @@ def ae_score(model: TorchAutoencoder, X: np.ndarray) -> np.ndarray:
         recon = model(xt)
         err = ((xt - recon) ** 2).sum(dim=1).numpy()
     return err
+
+
+def ae_per_feature_error(model: TorchAutoencoder, X: np.ndarray) -> np.ndarray:
+    """Squared reconstruction error per input feature, shape ``(n, d)`` like ``X``.
+
+    Rows sum to ``ae_score`` for the same input, so flag explanations can be
+    attributed by the same scorer that produced the flag.
+    """
+    with torch.no_grad():
+        xt = torch.tensor(X, dtype=torch.float32)
+        recon = model(xt)
+        per_feat = ((xt - recon) ** 2).numpy()
+    return per_feat
