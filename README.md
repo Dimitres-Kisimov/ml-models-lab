@@ -65,43 +65,102 @@ Short version below; the deeper spec with citations is in
 [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md), and each model has its own
 `README.md` with the exact source URLs.
 
-- **`demand-forecast-net`** - a global cross-series MLP (a "DeepAR-lite without
-  the RNN"): lags {1,2,3,12,13} + rolling means {3,6,12} + Fourier month
-  features + an 8-dim SKU embedding, with a negative-binomial head. Intermittent
-  SKUs are routed and fed Croston smoothed size/interval states. I weight the NB
-  loss by inverse series scale so training targets the scale-free MASE/RMSSE
-  metric instead of over-fitting the few high-volume SKUs. See
-  [`mllab/demand_forecast_net/README.md`](mllab/demand_forecast_net/README.md).
+### `demand-forecast-net`
 
-- **`sku-text-classifier`** - hashed char n-grams (3-5) into an
-  `nn.EmbeddingBag(mean)` and a linear softmax (fastText core). Before hashing I
-  split alphanumeric part numbers with a regex (`M8x40` -> `m8`, `x40`, `8`,
-  `40`) so unseen SKUs are represented by their *shape*, and I use
-  inverse-frequency class weights so rare categories are not drowned. Reported
-  as **macro-F1**, not accuracy. See
-  [`mllab/sku_text_classifier/README.md`](mllab/sku_text_classifier/README.md).
+A global cross-series MLP (a "DeepAR-lite without
+the RNN"): lags {1,2,3,12,13} + rolling means {3,6,12} + Fourier month
+features + an 8-dim SKU embedding, with a negative-binomial head. Intermittent
+SKUs are routed and fed Croston smoothed size/interval states. I weight the NB
+loss by inverse series scale so training targets the scale-free MASE/RMSSE
+metric instead of over-fitting the few high-volume SKUs. See
+[`mllab/demand_forecast_net/README.md`](mllab/demand_forecast_net/README.md).
 
-- **`order-anomaly-ae`** - an undercomplete autoencoder (d-16-4-16-d) trained on
-  normal orders only; the anomaly score is reconstruction error. The
-  **mandatory numpy PCA-SVD baseline** runs alongside it, and I report the
-  honest side-by-side. The AE also explains each flag by its top per-feature
-  errors. See [`mllab/order_anomaly_ae/README.md`](mllab/order_anomaly_ae/README.md).
+![Rolling-origin forecast fit for one seasonal SKU](docs/img/forecast_fit.png)
 
-- **`churn-rfm-predictor`** - logistic regression written from scratch in numpy
-  (sigmoid, L2-penalised BCE, analytic gradient, full-batch GD), with
-  class-weighting and Platt calibration fit on held-out logits. Features include
-  an engineered declining-order-frequency slope, and the split is time-based to
-  avoid leakage. See
-  [`mllab/churn_rfm_predictor/README.md`](mllab/churn_rfm_predictor/README.md).
+*Rolling-origin one-step forecasts for a representative seasonal SKU (synthetic,
+seeded): the global NB MLP scores MASE **0.987** / RMSSE **0.948** vs
+seasonal-naive 1.080 / 1.062 and Holt-Winters 1.101 / 1.019.*
 
-- **`price-elasticity-regressor`** - ridge (closed form via `scipy.linalg.solve`
-  plus gradient descent from scratch) and lasso (coordinate descent with
-  soft-thresholding) on per-segment log-log elasticity, with hierarchical
-  shrinkage of thin segments toward the pooled estimate. The synthetic data
-  bakes in a demand confounder, so I can show naive OLS is biased and adding the
-  control recovers the true elasticity - then translate that into simulated
-  profit regret vs the Lerner optimum. See
-  [`mllab/price_elasticity_regressor/README.md`](mllab/price_elasticity_regressor/README.md).
+With real data I would add explicit leakage checks that every feature window
+ends strictly before the forecast origin (order cut-off timestamps, late-arriving
+corrections) and re-run the rolling-origin backtest monthly to catch demand drift.
+
+### `sku-text-classifier`
+
+Hashed char n-grams (3-5) into an
+`nn.EmbeddingBag(mean)` and a linear softmax (fastText core). Before hashing I
+split alphanumeric part numbers with a regex (`M8x40` -> `m8`, `x40`, `8`,
+`40`) so unseen SKUs are represented by their *shape*, and I use
+inverse-frequency class weights so rare categories are not drowned. Reported
+as **macro-F1**, not accuracy. See
+[`mllab/sku_text_classifier/README.md`](mllab/sku_text_classifier/README.md).
+
+![Row-normalised confusion matrix over the 12 categories](docs/img/confusion_matrix.png)
+
+*Row-normalised confusion matrix on the stratified synthetic test split:
+macro-F1 **0.963** vs majority-class baseline 0.013.*
+
+With real data I would audit label quality on a stratified sample before
+training, because supplier-fed catalogue categories are typically noisy and a
+clean macro-F1 on dirty labels is meaningless.
+
+### `order-anomaly-ae`
+
+An undercomplete autoencoder (d-16-4-16-d) trained on
+normal orders only; the anomaly score is reconstruction error. The
+**mandatory numpy PCA-SVD baseline** runs alongside it, and I report the
+honest side-by-side. The AE also explains each flag by its top per-feature
+errors. See [`mllab/order_anomaly_ae/README.md`](mllab/order_anomaly_ae/README.md).
+
+![Precision-recall curves, autoencoder vs PCA baseline](docs/img/pr_curve.png)
+
+*Precision-recall curves on the held-out synthetic mix: AE **0.963** PR-AUC vs
+PCA **0.951** - a narrow win on this seed, which is why the PCA baseline stays
+in the report.*
+
+With real data I would re-estimate the contamination rate and the clean-split
+threshold on a fresh verified-normal window at a fixed cadence, because
+order-mix drift silently invalidates a fixed percentile cut.
+
+### `churn-rfm-predictor`
+
+Logistic regression written from scratch in numpy
+(sigmoid, L2-penalised BCE, analytic gradient, full-batch GD), with
+class-weighting and Platt calibration fit on held-out logits. Features include
+an engineered declining-order-frequency slope, and the split is time-based to
+avoid leakage. See
+[`mllab/churn_rfm_predictor/README.md`](mllab/churn_rfm_predictor/README.md).
+
+![Reliability curve before and after Platt calibration](docs/img/reliability_curve.png)
+
+*Reliability curve on the time-based synthetic test split: Platt calibration
+brings ECE **0.197 -> 0.021** at PR-AUC **0.653** (vs recency 0.361 /
+prevalence 0.150).*
+
+With real data I would recheck calibration on every scoring cycle and
+recalibrate on the newest complete cohort, because churn base rates drift and
+stale Platt parameters quietly mislead whoever consumes the probabilities.
+
+### `price-elasticity-regressor`
+
+Ridge (closed form via `scipy.linalg.solve`
+plus gradient descent from scratch) and lasso (coordinate descent with
+soft-thresholding) on per-segment log-log elasticity, with hierarchical
+shrinkage of thin segments toward the pooled estimate. The synthetic data
+bakes in a demand confounder, so I can show naive OLS is biased and adding the
+control recovers the true elasticity - then translate that into simulated
+profit regret vs the Lerner optimum. See
+[`mllab/price_elasticity_regressor/README.md`](mllab/price_elasticity_regressor/README.md).
+
+![True vs estimated elasticity, naive OLS vs controlled](docs/img/elasticity_fit.png)
+
+*True vs estimated elasticity per product (synthetic): naive OLS is biased
+**+1.52**; adding the demand control brings the bias to **+0.03**, and pricing
+from the shrunk estimates costs **0.89%** profit regret vs the analytic optimum.*
+
+With real data I would replace the synthetic confounder control with an actual
+instrument or observable cost-shifter, because without one the endogeneity bias
+this figure demonstrates cannot be identified, let alone removed.
 
 ## Repo layout
 
