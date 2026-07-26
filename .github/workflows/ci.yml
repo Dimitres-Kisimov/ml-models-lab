@@ -35,3 +35,10 @@ jobs:
 
       - name: Pytest
         run: python -m pytest -q
+
+      # The one-pager deliverable must stay buildable from the repo figures.
+      # The script itself exits non-zero if the PDF comes out <= 10 KB, so this
+      # step is both the build and the size gate (matplotlib is already in the
+      # install above; no new dependency).
+      - name: Build one-pager PDF (with > 10 KB size check)
+        run: python tools/make_onepager.py
