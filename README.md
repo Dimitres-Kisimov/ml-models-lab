@@ -85,6 +85,8 @@ With real data I would add explicit leakage checks that every feature window
 ends strictly before the forecast origin (order cut-off timestamps, late-arriving
 corrections) and re-run the rolling-origin backtest monthly to catch demand drift.
 
+Model card: [`docs/model_cards/demand-forecast-net.md`](docs/model_cards/demand-forecast-net.md)
+
 ### `sku-text-classifier`
 
 Hashed char n-grams (3-5) into an
@@ -104,6 +106,8 @@ With real data I would audit label quality on a stratified sample before
 training, because supplier-fed catalogue categories are typically noisy and a
 clean macro-F1 on dirty labels is meaningless.
 
+Model card: [`docs/model_cards/sku-text-classifier.md`](docs/model_cards/sku-text-classifier.md)
+
 ### `order-anomaly-ae`
 
 An undercomplete autoencoder (d-16-4-16-d) trained on
@@ -121,6 +125,8 @@ in the report.*
 With real data I would re-estimate the contamination rate and the clean-split
 threshold on a fresh verified-normal window at a fixed cadence, because
 order-mix drift silently invalidates a fixed percentile cut.
+
+Model card: [`docs/model_cards/order-anomaly-ae.md`](docs/model_cards/order-anomaly-ae.md)
 
 ### `churn-rfm-predictor`
 
@@ -140,6 +146,8 @@ prevalence 0.150).*
 With real data I would recheck calibration on every scoring cycle and
 recalibrate on the newest complete cohort, because churn base rates drift and
 stale Platt parameters quietly mislead whoever consumes the probabilities.
+
+Model card: [`docs/model_cards/churn-rfm-predictor.md`](docs/model_cards/churn-rfm-predictor.md)
 
 ### `price-elasticity-regressor`
 
@@ -162,6 +170,8 @@ With real data I would replace the synthetic confounder control with an actual
 instrument or observable cost-shifter, because without one the endogeneity bias
 this figure demonstrates cannot be identified, let alone removed.
 
+Model card: [`docs/model_cards/price-elasticity-regressor.md`](docs/model_cards/price-elasticity-regressor.md)
+
 ## Repo layout
 
 ```
@@ -175,6 +185,7 @@ mllab/
   price_elasticity_regressor/
 tests/                deterministic + baseline-beating + invariant checks
 docs/METHODOLOGY.md   the deeper spec, with citations
+docs/model_cards/     one card per model (Mitchell et al. structure)
 ```
 
 ## License
