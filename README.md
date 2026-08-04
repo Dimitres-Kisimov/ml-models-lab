@@ -186,7 +186,12 @@ mllab/
 tests/                deterministic + baseline-beating + invariant checks
 docs/METHODOLOGY.md   the deeper spec, with citations
 docs/model_cards/     one card per model (Mitchell et al. structure)
+docs/MODEL_CARDS.md   roll-up table of all five cards (metric + baseline + limits)
 ```
+
+Every model package must ship a card: `tests/test_model_cards.py` fails if a
+model is missing its card, if a card is orphaned, or if a card drops a required
+section - so the documentation cannot silently drift out of sync with the code.
 
 ## License
 

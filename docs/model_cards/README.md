@@ -23,4 +23,10 @@ explicitly.
 | [churn-rfm-predictor.md](churn-rfm-predictor.md) | Calibrated RFM churn predictor |
 | [price-elasticity-regressor.md](price-elasticity-regressor.md) | Price elasticity + Lerner pricing |
 
+A one-screen roll-up of all five cards - headline metric, baseline beaten, and
+"do not use for" - is in [`../MODEL_CARDS.md`](../MODEL_CARDS.md).
+[`tests/test_model_cards.py`](../../tests/test_model_cards.py) enforces that
+every model package has a card here and every card stays well-formed, so the
+set cannot silently drift out of sync with the code.
+
 Author: Dimitres Kisimov, 2026.
