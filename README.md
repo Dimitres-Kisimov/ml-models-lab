@@ -33,6 +33,19 @@ models on toy data, meant to show the method and an honest evaluation.
 | `churn-rfm-predictor` | RFM + L2 logistic regression | declining-order-frequency slope + Platt calibration after class-weighting; time-based split | PR-AUC (+ Brier, ECE) | **0.653** PR-AUC vs recency 0.361 / prevalence 0.150; ECE 0.197 -> **0.021** after calibration |
 | `price-elasticity-regressor` | Ridge + Lasso, log-log elasticity | hierarchical shrinkage of thin segments + endogeneity control | elasticity RMSE + profit regret | naive-OLS bias **+1.52** -> controlled **+0.03**; profit regret **0.89%** vs the analytic optimum |
 
+## Shared benchmark (one scoring rule across all five)
+
+The five models report in different natural metrics (MASE, macro-F1, PR-AUC,
+elasticity RMSE), so [`mllab/benchmark.py`](mllab/benchmark.py) folds them into
+one leaderboard with a single, direction-aware **skill score** - the fraction
+of the fair baseline's error a model removes (lower-is-better metrics) or of the
+headroom to a perfect score it captures (bounded higher-is-better metrics). It
+reuses each model's own `train.run()` (no retraining code) and writes the
+committed table [`docs/BENCHMARK.md`](docs/BENCHMARK.md). **All five models beat
+their fair baseline** on this seeded synthetic data. The table is machine
+generated - not hand-typed - and [`tests/test_benchmark.py`](tests/test_benchmark.py)
+recomputes every cell and fails if it drifts from what the code produces.
+
 ## How to run
 
 Install the stack (numpy / scipy / pandas / matplotlib / torch):
@@ -50,6 +63,12 @@ python -m mllab.sku_text_classifier        # confusion matrix, macro-F1
 python -m mllab.order_anomaly_ae           # PR curves, AE vs PCA
 python -m mllab.churn_rfm_predictor        # reliability curve, PR-AUC
 python -m mllab.price_elasticity_regressor # elasticity fit, endogeneity demo
+```
+
+Score all five under one rule and regenerate the leaderboard:
+
+```
+python -m mllab.benchmark                  # writes docs/BENCHMARK.md
 ```
 
 Run the gates:
@@ -178,6 +197,7 @@ Model card: [`docs/model_cards/price-elasticity-regressor.md`](docs/model_cards/
 mllab/
   synth.py            seeded synthetic data generators (all 5)
   metrics.py          from-scratch metrics (ROC/PR-AUC, MASE, ECE, macro-F1, ...)
+  benchmark.py        shared harness: one skill score across all 5 -> docs/BENCHMARK.md
   demand_forecast_net/
   sku_text_classifier/
   order_anomaly_ae/
@@ -187,6 +207,7 @@ tests/                deterministic + baseline-beating + invariant checks
 docs/METHODOLOGY.md   the deeper spec, with citations
 docs/model_cards/     one card per model (Mitchell et al. structure)
 docs/MODEL_CARDS.md   roll-up table of all five cards (metric + baseline + limits)
+docs/BENCHMARK.md     machine-generated leaderboard: one skill score across all 5
 ```
 
 Every model package must ship a card: `tests/test_model_cards.py` fails if a
