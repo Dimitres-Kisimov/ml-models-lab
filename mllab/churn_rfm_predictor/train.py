@@ -68,6 +68,17 @@ def run(seed: int = SEED, make_plot: bool = True) -> dict:
         "test_base_rate": float(yte.mean()),
         "n_train": int(len(Xtr)),
         "n_test": int(len(Xte)),
+        # Per-test-unit arrays for downstream analysis (e.g. the bootstrap skill
+        # CI in mllab/uncertainty.py). These are the SAME predictions scored
+        # above - nothing is retrained; a consumer only recomputes the metric on
+        # resampled test rows. metric = pr_auc(y_true, model_score); the fair
+        # baseline is pr_auc(y_true, baseline_score).
+        "eval_units": {
+            "kind": "binary_scores",
+            "y_true": yte,
+            "model_score": p_cal,
+            "baseline_score": recency_score,
+        },
     }
 
     print("=== churn-rfm-predictor ===")

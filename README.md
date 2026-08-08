@@ -46,6 +46,32 @@ their fair baseline** on this seeded synthetic data. The table is machine
 generated - not hand-typed - and [`tests/test_benchmark.py`](tests/test_benchmark.py)
 recomputes every cell and fails if it drifts from what the code produces.
 
+### Bootstrap confidence intervals on the skill scores
+
+A point skill score says a model beats its baseline, but not by how much or
+whether the margin is bigger than evaluation noise.
+[`mllab/uncertainty.py`](mllab/uncertainty.py) puts a non-parametric percentile
+bootstrap **95% confidence interval** on the skill score of each **numpy** model
+(`churn-rfm-predictor`, `price-elasticity-regressor`) by resampling the
+evaluation units with replacement and recomputing the metric. It **reuses each
+model's already-computed test-set predictions** (via the `eval_units` its
+`train.run()` returns) - nothing is retrained, so the interval measures
+*evaluation-set sampling* uncertainty, not training-seed uncertainty. On the
+seeded data both intervals sit entirely above zero: churn skill **+0.457**
+(95% CI **[+0.381, +0.528]**) and elasticity-RMSE skill **+0.918**
+(95% CI **[+0.904, +0.934]**). The committed table is
+[`docs/BENCHMARK_CI.md`](docs/BENCHMARK_CI.md).
+
+Only the two numpy models are covered **on purpose**: they are deterministic on
+every platform, so the intervals are bit-reproducible and CI-verifiable. The
+three torch-trained models are excluded because their trained metric is not
+bit-reproducible across BLAS/OS builds (the same reason
+[`tests/test_benchmark.py`](tests/test_benchmark.py) pins only their labels and
+beats flag), so a committed interval for them would be machine-dependent. As
+everywhere in this repo, the skill score is a *within-model* diagnostic against
+that model's fair baseline, not a cross-model ranking, and all data is synthetic
+and seeded.
+
 ## How to run
 
 Install the stack (numpy / scipy / pandas / matplotlib / torch):
@@ -69,6 +95,12 @@ Score all five under one rule and regenerate the leaderboard:
 
 ```
 python -m mllab.benchmark                  # writes docs/BENCHMARK.md
+```
+
+Put bootstrap confidence intervals on the numpy models' skill scores:
+
+```
+python -m mllab.uncertainty                # writes docs/BENCHMARK_CI.md
 ```
 
 Run the gates:
@@ -198,6 +230,7 @@ mllab/
   synth.py            seeded synthetic data generators (all 5)
   metrics.py          from-scratch metrics (ROC/PR-AUC, MASE, ECE, macro-F1, ...)
   benchmark.py        shared harness: one skill score across all 5 -> docs/BENCHMARK.md
+  uncertainty.py      bootstrap 95% CIs on the numpy models' skill -> docs/BENCHMARK_CI.md
   demand_forecast_net/
   sku_text_classifier/
   order_anomaly_ae/
@@ -208,6 +241,7 @@ docs/METHODOLOGY.md   the deeper spec, with citations
 docs/model_cards/     one card per model (Mitchell et al. structure)
 docs/MODEL_CARDS.md   roll-up table of all five cards (metric + baseline + limits)
 docs/BENCHMARK.md     machine-generated leaderboard: one skill score across all 5
+docs/BENCHMARK_CI.md  machine-generated bootstrap 95% CIs on the numpy skill scores
 ```
 
 Every model package must ship a card: `tests/test_model_cards.py` fails if a

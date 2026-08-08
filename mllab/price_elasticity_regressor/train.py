@@ -82,6 +82,17 @@ def run(seed: int = SEED, make_plot: bool = True) -> dict:
         "mean_regret_frac": profit["mean_regret_frac"],
         "uplift_vs_cost_plus": profit["uplift_vs_cost_plus"],
         "n_products": len(products),
+        # Per-product arrays for downstream analysis (e.g. the bootstrap skill
+        # CI in mllab/uncertainty.py). These are the SAME estimates scored above
+        # - nothing is refit; a consumer only recomputes the RMSE on resampled
+        # products. metric = rmse(model_estimate, target); the fair baseline is
+        # rmse(baseline_estimate, target).
+        "eval_units": {
+            "kind": "regression_estimates",
+            "target": true_e,
+            "model_estimate": shrunk,
+            "baseline_estimate": naive_e,
+        },
     }
 
     print("=== price-elasticity-regressor ===")
